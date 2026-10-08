@@ -1,0 +1,25 @@
+{
+"version": "2.0.0",
+"tasks": [
+{
+"label": "Velora: GitHub'a gönder ve siteyi güncelle",
+"type": "process",
+"command": "powershell.exe",
+"args": [
+"-NoProfile",
+"-ExecutionPolicy",
+"Bypass",
+"-Command",
+"git add -A; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; git diff --cached --quiet; if ($LASTEXITCODE -eq 0) { Write-Host 'Yeni degisiklik yok.'; git push; exit $LASTEXITCODE }; git commit -m 'Velora update'; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; git push; exit $LASTEXITCODE"
+],
+"options": {
+"cwd": "${workspaceFolder}"
+},
+"group": {
+"kind": "build",
+"isDefault": true
+},
+"problemMatcher": []
+}
+]
+}
