@@ -129,10 +129,10 @@ export default function Home() {
             className="text-center"
           >
             <span className="block text-xl font-semibold tracking-[0.28em]">
-              VELORA
+              Zyren
             </span>
             <span className="mt-1 block text-[9px] tracking-[0.4em] text-gray-500">
-              COLLECTION
+              Versé
             </span>
           </button>
 
@@ -215,7 +215,8 @@ export default function Home() {
                   <div className="relative z-20 flex min-h-[48px] items-center justify-between gap-3">
                     <div>
                       <p className="text-[10px] tracking-[0.35em] text-gray-500">
-                        VELORA
+                        Zyren Versé
+
                       </p>
                       <p className="mt-1 text-xs text-gray-400">
                         Fine Jewelry
@@ -317,7 +318,7 @@ export default function Home() {
         {(tab === "categories" || tab === "favorites") && !selected && (
           <section className="min-h-[65vh] py-16">
             <p className="text-[10px] tracking-[0.3em] text-gray-500">
-              VELORA COLLECTION
+              ZYREN VERSÉ
             </p>
 
             <h1 className="mt-4 text-4xl font-light sm:text-5xl">
@@ -510,14 +511,14 @@ export default function Home() {
         {tab === "menu" && (
           <section className="min-h-[65vh] py-16">
             <p className="text-[10px] tracking-[0.3em] text-gray-500">
-              VELORA COLLECTION
+              Zyren Versé
             </p>
             <h1 className="mt-4 text-4xl font-light">Keşfet</h1>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
               <MenuCard
                 title="Ana sayfa"
-                description="Velora dünyasına geri dön."
+                description="Zyren Versé dünyasına geri dön."
                 icon="⌂"
                 onClick={() => navigate("home")}
               />
@@ -542,7 +543,7 @@ export default function Home() {
             </div>
 
             <div className="mt-8 rounded-3xl border border-white bg-white/60 p-6 backdrop-blur-xl">
-              <p className="font-medium">Velora Collection</p>
+              <p className="font-medium">Zyren Versé</p>
               <p className="mt-2 text-sm leading-7 text-gray-500">
                 Zarafeti modern tasarımlarla buluşturan dijital bir marka
                 deneyimi.
@@ -555,7 +556,7 @@ export default function Home() {
         )}
 
         <footer className="mt-12 border-t border-black/10 py-8 text-center">
-          <p className="text-xs tracking-[0.4em] text-gray-500">VELORA</p>
+          <p className="text-xs tracking-[0.4em] text-gray-500">ZYREN VERSÉ</p>
           <p className="mt-3 text-xs text-gray-400">
             Zamansız zarafet, modern bir dokunuş.
           </p>
@@ -584,7 +585,7 @@ export default function Home() {
         <button
           type="button"
           onClick={() => navigate("home")}
-          aria-label="Velora ana sayfa"
+          aria-label="Zyren Versé ana sayfa"
           className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#29243b] text-2xl text-white shadow-lg transition hover:scale-105"
         >
           ♧
