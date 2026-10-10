@@ -1,771 +1,3297 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-type Product = {
+type Urun = {
   id: number;
-  name: string;
-  category: string;
-  price: number;
-  description: string;
-  symbol: string;
+  isim: string;
+  kategori: string;
+  fiyat: number;
+  sembol: string;
+  etiket?: string;
+  aciklama: string;
 };
 
-type Tab = "home" | "categories" | "favorites" | "cart" | "menu";
-
-const products: Product[] = [
+const URUNLER: Urun[] = [
   {
     id: 1,
-    name: "Swan Necklace",
-    category: "Kolye",
-    price: 1299,
-    description: "Zarif detaylarla tamamlanan zamansız bir tasarım.",
-    symbol: "🦢",
+    isim: "Kuğu Kolye",
+    kategori: "Kolyeler",
+    fiyat: 749,
+    sembol: "🦢",
+    etiket: "ÇOK SEVİLEN",
+    aciklama:
+      "Zarafeti ve sadeliği bir araya getiren, kuğu sembolümüzden ilham alan özel tasarım.",
   },
   {
     id: 2,
-    name: "Luna Bracelet",
-    category: "Bileklik",
-    price: 899,
-    description: "Minimal çizgilerden ilham alan modern bir dokunuş.",
-    symbol: "✧",
+    isim: "Luna Küpe",
+    kategori: "Küpeler",
+    fiyat: 529,
+    sembol: "✧",
+    aciklama:
+      "Ay ışığının zarafetinden ilham alan modern ve sade tasarım.",
   },
   {
     id: 3,
-    name: "Aura Earrings",
-    category: "Küpe",
-    price: 749,
-    description: "Her anına sade ve zarif bir ışıltı kat.",
-    symbol: "◇",
+    isim: "Aurelia Bileklik",
+    kategori: "Bileklikler",
+    fiyat: 619,
+    sembol: "〰",
+    etiket: "YENİ",
+    aciklama:
+      "Minimal çizgileri ve zamansız görünümüyle her stile uyum sağlar.",
+  },
+  {
+    id: 4,
+    isim: "Selene Kolye",
+    kategori: "Kolyeler",
+    fiyat: 679,
+    sembol: "☾",
+    aciklama:
+      "Gökyüzünün büyüsünü modern tasarımla buluşturan zarif bir kolye.",
+  },
+  {
+    id: 5,
+    isim: "Mira Yüzük",
+    kategori: "Yüzükler",
+    fiyat: 459,
+    sembol: "◇",
+    aciklama:
+      "Geometrik detayları ve yalın tasarımıyla zamansız bir tamamlayıcı.",
+  },
+  {
+    id: 6,
+    isim: "Nova Küpe",
+    kategori: "Küpeler",
+    fiyat: 579,
+    sembol: "✦",
+    aciklama:
+      "Yıldızlardan ilham alan modern tasarımıyla stiline ışıltı katar.",
   },
 ];
 
-const categories = ["Tümü", "Kolye", "Bileklik", "Küpe"];
+const KATEGORILER = [
+  "Tümü",
+  "Kolyeler",
+  "Küpeler",
+  "Bileklikler",
+  "Yüzükler",
+];
 
-function formatPrice(price: number) {
-  return new Intl.NumberFormat("tr-TR", {
+const PARA = (fiyat: number) =>
+  new Intl.NumberFormat("tr-TR", {
     style: "currency",
     currency: "TRY",
     maximumFractionDigits: 0,
-  }).format(price);
-}
+  }).format(fiyat);
 
 export default function Home() {
-  const [tab, setTab] = useState<Tab>("home");
-  const [favorites, setFavorites] = useState<number[]>([]);
-  const [cart, setCart] = useState<number[]>([]);
-  const [category, setCategory] = useState("Tümü");
-  const [selected, setSelected] = useState<Product | null>(null);
-  const [notice, setNotice] = useState("");
+  const [sayfa, setSayfa] = useState<"ana" | "urunler">("ana");
 
-  const displayedProducts = products.filter((product) => {
-    const matchesCategory =
-      category === "Tümü" || product.category === category;
+  const [arama, setArama] = useState("");
+  const [kategori, setKategori] = useState("Tümü");
 
-    const matchesFavorites =
-      tab !== "favorites" || favorites.includes(product.id);
+  const [favoriler, setFavoriler] = useState<number[]>([]);
+  const [sepet, setSepet] = useState<number[]>([]);
 
-    return matchesCategory && matchesFavorites;
-  });
+  const [menuAcik, setMenuAcik] = useState(false);
+  const [favorilerAcik, setFavorilerAcik] = useState(false);
+  const [sepetAcik, setSepetAcik] = useState(false);
 
-  const cartProducts = cart
-    .map((id) => products.find((product) => product.id === id))
-    .filter((product): product is Product => product !== undefined);
+  const [seciliUrun, setSeciliUrun] = useState<Urun | null>(null);
+  const [bildirim, setBildirim] = useState("");
 
-  const cartTotal = cartProducts.reduce(
-    (total, product) => total + product.price,
-    0,
+  const herhangiBirPanelAcik =
+    menuAcik || favorilerAcik || sepetAcik || Boolean(seciliUrun);
+
+  useEffect(() => {
+    try {
+      const kayitliFavoriler = localStorage.getItem("zyren-favoriler");
+      const kayitliSepet = localStorage.getItem("zyren-sepet");
+
+      if (kayitliFavoriler) {
+        setFavoriler(JSON.parse(kayitliFavoriler));
+      }
+
+      if (kayitliSepet) {
+        setSepet(JSON.parse(kayitliSepet));
+      }
+    } catch {
+      console.warn("Kayıtlı veriler yüklenemedi.");
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "zyren-favoriler",
+      JSON.stringify(favoriler)
+    );
+  }, [favoriler]);
+
+  useEffect(() => {
+    localStorage.setItem("zyren-sepet", JSON.stringify(sepet));
+  }, [sepet]);
+
+  /*
+    PANEL / MODAL AÇIKKEN ARKA SAYFAYI KİLİTLE.
+    Böylece hamburger menüsü açıldığında arkadaki
+    sayfa artık scroll olmaz.
+  */
+  useEffect(() => {
+    if (herhangiBirPanelAcik) {
+      const mevcutOverflow = document.body.style.overflow;
+
+      document.body.style.overflow = "hidden";
+
+      return () => {
+        document.body.style.overflow = mevcutOverflow;
+      };
+    }
+
+    document.body.style.overflow = "";
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [herhangiBirPanelAcik]);
+
+  /*
+    ESC ile açık paneli / modalı kapat.
+  */
+  useEffect(() => {
+    function escapeIleKapat(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+
+      setMenuAcik(false);
+      setFavorilerAcik(false);
+      setSepetAcik(false);
+      setSeciliUrun(null);
+    }
+
+    window.addEventListener("keydown", escapeIleKapat);
+
+    return () => {
+      window.removeEventListener("keydown", escapeIleKapat);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!bildirim) return;
+
+    const zamanlayici = window.setTimeout(() => {
+      setBildirim("");
+    }, 2600);
+
+    return () => window.clearTimeout(zamanlayici);
+  }, [bildirim]);
+
+  const filtrelenmisUrunler = useMemo(() => {
+    return URUNLER.filter((urun) => {
+      const aramayaUyuyor = urun.isim
+        .toLocaleLowerCase("tr-TR")
+        .includes(arama.toLocaleLowerCase("tr-TR"));
+
+      const kategoriyeUyuyor =
+        kategori === "Tümü" || urun.kategori === kategori;
+
+      return aramayaUyuyor && kategoriyeUyuyor;
+    });
+  }, [arama, kategori]);
+
+  const sepettekiUrunler = sepet
+    .map((id, index) => ({
+      urun: URUNLER.find((urun) => urun.id === id),
+      index,
+    }))
+    .filter(
+      (item): item is { urun: Urun; index: number } =>
+        item.urun !== undefined
+    );
+
+  const sepetToplami = sepettekiUrunler.reduce(
+    (toplam, item) => toplam + item.urun.fiyat,
+    0
   );
 
-  function navigate(nextTab: Tab) {
-    setTab(nextTab);
-    setSelected(null);
-    setCategory("Tümü");
+  function bildirimGoster(mesaj: string) {
+    setBildirim(mesaj);
   }
 
-  function toggleFavorite(id: number) {
-    setFavorites((current) =>
-      current.includes(id)
-        ? current.filter((item) => item !== id)
-        : [...current, id],
+  function panelleriKapat() {
+    setMenuAcik(false);
+    setFavorilerAcik(false);
+    setSepetAcik(false);
+  }
+
+  function sayfayaGit(yeniSayfa: "ana" | "urunler") {
+    setSayfa(yeniSayfa);
+
+    panelleriKapat();
+
+    setArama("");
+    setKategori("Tümü");
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
+  function bolumeGit(id: string) {
+    panelleriKapat();
+
+    if (sayfa !== "ana") {
+      setSayfa("ana");
+
+      window.setTimeout(() => {
+        document.getElementById(id)?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 120);
+
+      return;
+    }
+
+    window.setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 50);
+  }
+
+  function kategoriSec(item: string) {
+    setKategori(item);
+    setArama("");
+    setSayfa("urunler");
+
+    panelleriKapat();
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
+  function favoriDegistir(id: number) {
+    const zatenFavori = favoriler.includes(id);
+
+    setFavoriler((onceki) =>
+      zatenFavori
+        ? onceki.filter((urunId) => urunId !== id)
+        : [...onceki, id]
+    );
+
+    bildirimGoster(
+      zatenFavori
+        ? "Favorilerinden kaldırıldı."
+        : "Favorilerine eklendi."
     );
   }
 
-  function addToCart(id: number) {
-    setCart((current) => [...current, id]);
-    setNotice("Ürün sepetine eklendi.");
+  function sepeteEkle(id: number) {
+    setSepet((onceki) => [...onceki, id]);
 
-    window.setTimeout(() => setNotice(""), 2200);
+    bildirimGoster("Ürün sepete eklendi.");
   }
 
-  function removeFromCart(index: number) {
-    setCart((current) => current.filter((_, i) => i !== index));
+  function sepettenCikar(index: number) {
+    setSepet((onceki) =>
+      onceki.filter((_, i) => i !== index)
+    );
+
+    bildirimGoster("Ürün sepetten kaldırıldı.");
+  }
+
+  function urunKartiniAc(urun: Urun) {
+    setSeciliUrun(urun);
+  }
+
+  function urunKartKlavyedenAc(
+    event: React.KeyboardEvent<HTMLElement>,
+    urun: Urun
+  ) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      setSeciliUrun(urun);
+    }
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#f8f8fc] pb-32 text-[#242133]">
-      {/* Arka plan */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -left-40 -top-32 h-[420px] w-[420px] rounded-full bg-violet-300/25 blur-[110px]" />
-        <div className="absolute -right-32 top-[20%] h-[420px] w-[420px] rounded-full bg-cyan-200/30 blur-[120px]" />
-        <div className="absolute bottom-0 left-1/3 h-[360px] w-[360px] rounded-full bg-pink-200/25 blur-[110px]" />
+    <main className="zyren">
+      <style jsx global>{`
+        @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Manrope:wght@300;400;500;600;700&display=swap");
+
+        * {
+          box-sizing: border-box;
+        }
+
+        html {
+          scroll-behavior: smooth;
+        }
+
+        body {
+          margin: 0;
+          background: #f5f4f1;
+          color: #171717;
+          font-family: "Manrope", sans-serif;
+        }
+
+        button,
+        input {
+          font: inherit;
+        }
+
+        button {
+          cursor: pointer;
+        }
+
+        button:focus-visible,
+        input:focus-visible,
+        article:focus-visible {
+          outline: 2px solid #b79b65;
+          outline-offset: 4px;
+        }
+
+        .zyren {
+          --gold: #a88a56;
+          --gold-dark: #8f733f;
+          --text: #171717;
+          --muted: #737373;
+          --soft: #f8f7f4;
+          --border: rgba(24, 24, 24, 0.1);
+          --glass: rgba(255, 255, 255, 0.68);
+
+          min-height: 100vh;
+          overflow: hidden;
+
+          background:
+            radial-gradient(
+              circle at 12% 5%,
+              rgba(213, 198, 169, 0.28),
+              transparent 27%
+            ),
+            radial-gradient(
+              circle at 88% 13%,
+              rgba(215, 221, 224, 0.48),
+              transparent 28%
+            ),
+            linear-gradient(
+              135deg,
+              #f7f6f3 0%,
+              #ffffff 42%,
+              #f0f0ed 100%
+            );
+
+          color: var(--text);
+        }
+
+        .zyren button {
+          color: inherit;
+        }
+
+        .duyuru {
+          position: relative;
+          z-index: 50;
+
+          padding: 9px 16px;
+
+          border-bottom: 1px solid rgba(20, 20, 20, 0.07);
+
+          background: rgba(255, 255, 255, 0.56);
+
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+
+          color: #666;
+          text-align: center;
+
+          font-size: 9px;
+          font-weight: 600;
+          letter-spacing: 3px;
+        }
+
+        .ust-menu {
+          position: sticky;
+          top: 0;
+          z-index: 50;
+
+          display: grid;
+          grid-template-columns: 1fr auto 1fr;
+
+          align-items: center;
+
+          padding: 15px 5%;
+
+          border-bottom: 1px solid rgba(25, 25, 25, 0.08);
+
+          background: rgba(255, 255, 255, 0.64);
+
+          backdrop-filter: blur(30px) saturate(140%);
+          -webkit-backdrop-filter: blur(30px) saturate(140%);
+
+          box-shadow:
+            0 8px 30px rgba(30, 30, 30, 0.04);
+        }
+
+        .ikon-grup {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .ikon-dugme {
+          position: relative;
+
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+
+          width: 42px;
+          height: 42px;
+
+          border: 1px solid rgba(25, 25, 25, 0.08);
+          border-radius: 50%;
+
+          background: rgba(255, 255, 255, 0.48);
+
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.85),
+            0 5px 20px rgba(40, 40, 40, 0.04);
+
+          font-size: 19px;
+
+          transition:
+            transform 0.25s ease,
+            border-color 0.25s ease,
+            background 0.25s ease;
+        }
+
+        .ikon-dugme:hover {
+          transform: translateY(-2px);
+
+          border-color: rgba(168, 138, 86, 0.38);
+
+          background: rgba(255, 255, 255, 0.85);
+        }
+
+        .rozet {
+          position: absolute;
+          top: -3px;
+          right: -3px;
+
+          display: grid;
+          place-items: center;
+
+          min-width: 18px;
+          height: 18px;
+
+          padding: 0 5px;
+
+          border-radius: 50px;
+
+          background: #171717;
+          color: white !important;
+
+          font-size: 8px;
+          font-weight: 700;
+        }
+
+        .marka {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+
+          border: 0;
+          background: transparent;
+
+          text-align: center;
+
+          transition: transform 0.25s ease;
+        }
+
+        .marka:hover {
+          transform: translateY(-1px);
+        }
+
+        .logo-header {
+          width: 92px;
+          height: 52px;
+
+          object-fit: contain;
+
+          mix-blend-mode: multiply;
+
+          filter:
+            contrast(1.04)
+            drop-shadow(0 5px 10px rgba(0, 0, 0, 0.08));
+        }
+
+        .marka-kucuk {
+          display: block;
+
+          margin-top: 2px;
+
+          color: #8f8a82;
+
+          font-size: 7px;
+          font-weight: 600;
+          letter-spacing: 4px;
+        }
+
+        .ust-sag {
+          justify-content: flex-end;
+        }
+
+        .hero {
+          position: relative;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          min-height: 690px;
+
+          padding: 90px 24px 100px;
+
+          text-align: center;
+
+          isolation: isolate;
+        }
+
+        .hero::before {
+          position: absolute;
+          z-index: -2;
+
+          top: 5%;
+          left: 50%;
+
+          width: min(720px, 90vw);
+          height: 590px;
+
+          border-radius: 50%;
+
+          background:
+            radial-gradient(
+              circle,
+              rgba(255, 255, 255, 0.96) 0%,
+              rgba(255, 255, 255, 0.68) 32%,
+              rgba(219, 209, 187, 0.24) 57%,
+              transparent 73%
+            );
+
+          filter: blur(4px);
+
+          transform: translateX(-50%);
+          content: "";
+        }
+
+        .hero::after {
+          position: absolute;
+          z-index: -3;
+
+          right: -100px;
+          bottom: 0;
+
+          width: 360px;
+          height: 360px;
+
+          border-radius: 50%;
+
+          background: rgba(218, 222, 223, 0.3);
+
+          filter: blur(80px);
+
+          content: "";
+        }
+
+        .hero-icerik {
+          width: 100%;
+          max-width: 950px;
+        }
+
+        .hero-logo-wrap {
+          position: relative;
+
+          display: grid;
+          place-items: center;
+
+          width: min(420px, 80vw);
+          height: 285px;
+
+          margin: 0 auto 25px;
+
+          border: 1px solid rgba(255, 255, 255, 0.82);
+          border-radius: 45%;
+
+          background:
+            linear-gradient(
+              145deg,
+              rgba(255, 255, 255, 0.72),
+              rgba(255, 255, 255, 0.25)
+            );
+
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.95),
+            inset 0 -25px 50px rgba(150, 150, 150, 0.04),
+            0 35px 80px rgba(40, 40, 40, 0.08);
+
+          backdrop-filter: blur(25px);
+          -webkit-backdrop-filter: blur(25px);
+        }
+
+        .hero-logo-wrap::before {
+          position: absolute;
+
+          top: 20px;
+          left: 15%;
+
+          width: 50%;
+          height: 30px;
+
+          border-radius: 50%;
+
+          background: rgba(255, 255, 255, 0.7);
+
+          filter: blur(14px);
+
+          content: "";
+        }
+
+        .hero-logo {
+          position: relative;
+          z-index: 1;
+
+          width: min(310px, 65vw);
+          height: auto;
+
+          object-fit: contain;
+
+          mix-blend-mode: multiply;
+
+          filter:
+            contrast(1.05)
+            drop-shadow(0 15px 20px rgba(0, 0, 0, 0.12));
+        }
+
+        .ust-etiket {
+          color: var(--gold-dark);
+
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: 5px;
+          text-transform: uppercase;
+        }
+
+        .hero h1 {
+          margin: 5px 0 0;
+
+          color: #151515;
+
+          font-family: "Cormorant Garamond", serif;
+
+          font-size: clamp(48px, 8vw, 86px);
+          font-weight: 500;
+
+          letter-spacing: clamp(5px, 1.2vw, 12px);
+
+          line-height: 1;
+        }
+
+        .hero-aciklama {
+          max-width: 520px;
+
+          margin: 26px auto 34px;
+
+          color: #707070;
+
+          font-size: 13px;
+          line-height: 2;
+        }
+
+        .buton {
+          display: inline-flex;
+
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+
+          min-height: 49px;
+
+          padding: 0 26px;
+
+          border: 1px solid #171717;
+          border-radius: 50px;
+
+          background: #171717;
+
+          color: #fff !important;
+
+          font-size: 9px;
+          font-weight: 700;
+
+          letter-spacing: 1.7px;
+
+          box-shadow:
+            0 12px 30px rgba(20, 20, 20, 0.12);
+
+          transition:
+            transform 0.25s ease,
+            background 0.25s ease,
+            box-shadow 0.25s ease;
+        }
+
+        .buton:hover {
+          transform: translateY(-3px);
+
+          background: var(--gold-dark);
+
+          border-color: var(--gold-dark);
+
+          box-shadow:
+            0 16px 35px rgba(168, 138, 86, 0.2);
+        }
+
+        .buton-ikincil {
+          border-color: rgba(20, 20, 20, 0.14);
+
+          background: rgba(255, 255, 255, 0.48);
+
+          color: #171717 !important;
+
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.8),
+            0 8px 25px rgba(30, 30, 30, 0.04);
+        }
+
+        .buton-ikincil:hover {
+          border-color: rgba(168, 138, 86, 0.5);
+
+          background: rgba(255, 255, 255, 0.85);
+
+          color: var(--gold-dark) !important;
+        }
+
+        .bolum {
+          position: relative;
+
+          padding: 100px 5%;
+
+          scroll-margin-top: 90px;
+        }
+
+        .bolum-baslik {
+          margin-bottom: 45px;
+
+          text-align: center;
+        }
+
+        .bolum-baslik span {
+          color: var(--gold-dark);
+
+          font-size: 8px;
+          font-weight: 700;
+          letter-spacing: 4px;
+        }
+
+        .bolum-baslik h2 {
+          margin: 12px 0;
+
+          font-family: "Cormorant Garamond", serif;
+
+          font-size: clamp(40px, 5vw, 58px);
+          font-weight: 500;
+
+          letter-spacing: 1px;
+        }
+
+        .bolum-baslik p {
+          color: var(--muted);
+
+          font-size: 12px;
+          line-height: 1.9;
+        }
+
+        .koleksiyon-ust {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          flex-wrap: wrap;
+
+          gap: 18px;
+
+          max-width: 1280px;
+
+          margin: 0 auto 25px;
+        }
+
+        .arama-alani {
+          display: flex;
+          align-items: center;
+
+          flex: 1;
+
+          min-width: 230px;
+          max-width: 370px;
+
+          gap: 10px;
+
+          padding: 0 16px;
+
+          border: 1px solid rgba(20, 20, 20, 0.09);
+          border-radius: 50px;
+
+          background: rgba(255, 255, 255, 0.56);
+
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.8),
+            0 8px 25px rgba(30, 30, 30, 0.035);
+
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+        }
+
+        .arama-alani span {
+          color: #8d8d8d;
+          font-size: 17px;
+        }
+
+        .arama-alani input {
+          width: 100%;
+
+          min-height: 45px;
+
+          border: 0;
+          outline: 0;
+
+          background: transparent;
+
+          color: #171717;
+
+          font-size: 11px;
+        }
+
+        .arama-alani input::placeholder {
+          color: #999;
+        }
+
+        .kategori-listesi {
+          display: flex;
+
+          flex-wrap: wrap;
+
+          gap: 7px;
+        }
+
+        .kategori-buton {
+          padding: 10px 15px;
+
+          border: 1px solid rgba(20, 20, 20, 0.08);
+          border-radius: 50px;
+
+          background: rgba(255, 255, 255, 0.42);
+
+          color: #7c7c7c !important;
+
+          font-size: 9px;
+          font-weight: 600;
+
+          transition:
+            background 0.2s,
+            border-color 0.2s,
+            color 0.2s,
+            transform 0.2s;
+        }
+
+        .kategori-buton:hover {
+          transform: translateY(-1px);
+
+          border-color: rgba(168, 138, 86, 0.35);
+
+          background: rgba(255, 255, 255, 0.8);
+
+          color: var(--gold-dark) !important;
+        }
+
+        .kategori-buton.aktif {
+          border-color: #171717;
+
+          background: #171717;
+
+          color: white !important;
+        }
+
+        .tum-urunler {
+          display: flex;
+          justify-content: center;
+
+          margin: 0 0 30px;
+        }
+
+        .urun-sayaci {
+          max-width: 1280px;
+
+          margin: 0 auto 18px;
+
+          color: #999;
+
+          font-size: 9px;
+          font-weight: 600;
+
+          letter-spacing: 1.5px;
+        }
+
+        .urun-grid {
+          display: grid;
+
+          grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+
+          gap: 22px;
+
+          max-width: 1280px;
+
+          margin: 0 auto;
+        }
+
+        .urun-kart {
+          position: relative;
+
+          min-width: 0;
+
+          overflow: hidden;
+
+          border: 1px solid rgba(255, 255, 255, 0.8);
+
+          border-radius: 25px;
+
+          background:
+            linear-gradient(
+              145deg,
+              rgba(255, 255, 255, 0.78),
+              rgba(255, 255, 255, 0.43)
+            );
+
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.95),
+            0 18px 50px rgba(30, 30, 30, 0.055);
+
+          backdrop-filter: blur(25px);
+          -webkit-backdrop-filter: blur(25px);
+
+          cursor: pointer;
+
+          transition:
+            transform 0.3s ease,
+            box-shadow 0.3s ease,
+            border-color 0.3s ease;
+        }
+
+        .urun-kart:hover {
+          transform: translateY(-7px);
+
+          border-color: rgba(168, 138, 86, 0.3);
+
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 1),
+            0 28px 65px rgba(30, 30, 30, 0.1);
+        }
+
+        .urun-gorsel {
+          position: relative;
+
+          display: grid;
+          place-items: center;
+
+          min-height: 295px;
+
+          overflow: hidden;
+
+          border-bottom: 1px solid rgba(20, 20, 20, 0.06);
+
+          background:
+            radial-gradient(
+              circle at 50% 45%,
+              rgba(255, 255, 255, 0.96),
+              rgba(238, 237, 232, 0.62) 45%,
+              rgba(218, 217, 211, 0.42) 100%
+            );
+        }
+
+        .urun-gorsel::before {
+          position: absolute;
+
+          width: 190px;
+          height: 190px;
+
+          border: 1px solid rgba(80, 80, 80, 0.07);
+
+          border-radius: 50%;
+
+          box-shadow:
+            0 0 0 25px rgba(255, 255, 255, 0.16),
+            0 0 0 50px rgba(255, 255, 255, 0.08);
+
+          content: "";
+        }
+
+        .urun-gorsel::after {
+          position: absolute;
+
+          top: 20px;
+          left: 30px;
+
+          width: 100px;
+          height: 30px;
+
+          border-radius: 50%;
+
+          background: rgba(255, 255, 255, 0.68);
+
+          filter: blur(15px);
+
+          content: "";
+        }
+
+        .urun-sembol {
+          position: relative;
+          z-index: 1;
+
+          color: #444;
+
+          font-size: 78px;
+
+          filter:
+            drop-shadow(0 12px 12px rgba(0, 0, 0, 0.11));
+
+          transition:
+            transform 0.35s ease,
+            filter 0.35s ease;
+        }
+
+        .urun-kart:hover .urun-sembol {
+          transform: scale(1.1) translateY(-3px);
+
+          filter:
+            drop-shadow(0 17px 18px rgba(0, 0, 0, 0.15));
+        }
+
+        .urun-etiket {
+          position: absolute;
+
+          top: 15px;
+          left: 15px;
+
+          z-index: 3;
+
+          padding: 7px 10px;
+
+          border: 1px solid rgba(168, 138, 86, 0.25);
+          border-radius: 50px;
+
+          background: rgba(255, 255, 255, 0.75);
+
+          color: var(--gold-dark);
+
+          font-size: 7px;
+          font-weight: 700;
+
+          letter-spacing: 1.2px;
+
+          backdrop-filter: blur(10px);
+        }
+
+        .favori-kalp {
+          position: absolute;
+
+          top: 12px;
+          right: 12px;
+
+          z-index: 4;
+
+          display: grid;
+          place-items: center;
+
+          width: 40px;
+          height: 40px;
+
+          border: 1px solid rgba(30, 30, 30, 0.08);
+          border-radius: 50%;
+
+          background: rgba(255, 255, 255, 0.68);
+
+          color: #777;
+
+          font-size: 17px;
+
+          backdrop-filter: blur(15px);
+
+          transition:
+            transform 0.2s ease,
+            background 0.2s ease,
+            color 0.2s ease;
+        }
+
+        .favori-kalp:hover {
+          transform: scale(1.08);
+
+          background: white;
+        }
+
+        .favori-kalp.aktif {
+          color: #b45f72 !important;
+        }
+
+        .urun-bilgi {
+          padding: 22px;
+        }
+
+        .urun-kategori {
+          color: var(--gold-dark);
+
+          font-size: 8px;
+          font-weight: 700;
+
+          letter-spacing: 2px;
+
+          text-transform: uppercase;
+        }
+
+        .urun-bilgi h3 {
+          margin: 8px 0;
+
+          font-family: "Cormorant Garamond", serif;
+
+          font-size: 29px;
+          font-weight: 600;
+
+          letter-spacing: 0.3px;
+        }
+
+        .urun-aciklama {
+          min-height: 44px;
+
+          margin: 0;
+
+          color: #7d7d7d;
+
+          font-size: 10px;
+
+          line-height: 1.8;
+        }
+
+        .urun-alt {
+          display: flex;
+
+          align-items: center;
+          justify-content: space-between;
+
+          gap: 10px;
+
+          margin-top: 18px;
+
+          padding-top: 16px;
+
+          border-top: 1px solid rgba(20, 20, 20, 0.07);
+        }
+
+        .urun-fiyat {
+          color: #252525;
+
+          font-size: 13px;
+          font-weight: 700;
+        }
+
+        .urun-incele {
+          border: 0;
+
+          background: transparent;
+
+          color: var(--gold-dark) !important;
+
+          font-size: 9px;
+          font-weight: 700;
+
+          letter-spacing: 1px;
+        }
+
+        .urun-incele:hover {
+          text-decoration: underline;
+        }
+
+        .bos-sonuc {
+          grid-column: 1 / -1;
+
+          padding: 55px 20px;
+
+          border: 1px dashed rgba(30, 30, 30, 0.13);
+          border-radius: 25px;
+
+          background: rgba(255, 255, 255, 0.45);
+
+          color: #888;
+
+          text-align: center;
+
+          font-size: 12px;
+        }
+
+        .urunler-hero {
+          padding: 90px 5% 55px;
+
+          text-align: center;
+        }
+
+        .urunler-hero h1 {
+          margin: 13px 0;
+
+          font-family: "Cormorant Garamond", serif;
+
+          font-size: clamp(48px, 7vw, 78px);
+          font-weight: 500;
+
+          letter-spacing: 5px;
+        }
+
+        .urunler-hero p {
+          max-width: 540px;
+
+          margin: 0 auto;
+
+          color: #777;
+
+          font-size: 12px;
+          line-height: 2;
+        }
+
+        .urunler-icerik {
+          width: min(1280px, 90%);
+
+          margin: auto;
+
+          padding-bottom: 60px;
+        }
+
+        .urunler-icerik .urun-grid {
+          max-width: none;
+        }
+
+        .hikaye {
+          display: grid;
+
+          grid-template-columns: 1fr 1fr;
+
+          align-items: center;
+
+          gap: 70px;
+
+          max-width: 1150px;
+
+          margin: auto;
+        }
+
+        .hikaye-gorsel {
+          position: relative;
+
+          display: grid;
+          place-items: center;
+
+          min-height: 420px;
+
+          overflow: hidden;
+
+          border: 1px solid rgba(255, 255, 255, 0.9);
+          border-radius: 35px;
+
+          background:
+            radial-gradient(
+              circle at 50% 45%,
+              rgba(255, 255, 255, 0.95),
+              rgba(222, 220, 213, 0.55)
+            );
+
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.95),
+            0 30px 70px rgba(30, 30, 30, 0.07);
+
+          backdrop-filter: blur(25px);
+        }
+
+        .hikaye-gorsel::before {
+          position: absolute;
+
+          width: 260px;
+          height: 260px;
+
+          border: 1px solid rgba(50, 50, 50, 0.08);
+
+          border-radius: 50%;
+
+          box-shadow:
+            0 0 0 30px rgba(255, 255, 255, 0.18),
+            0 0 0 60px rgba(255, 255, 255, 0.08);
+
+          content: "";
+        }
+
+        .hikaye-logo {
+          position: relative;
+          z-index: 1;
+
+          width: 260px;
+          max-width: 65%;
+
+          mix-blend-mode: multiply;
+
+          filter:
+            drop-shadow(0 20px 18px rgba(0, 0, 0, 0.1));
+        }
+
+        .hikaye-yazi .ust-etiket {
+          font-size: 8px;
+        }
+
+        .hikaye-yazi h2 {
+          margin: 18px 0;
+
+          font-family: "Cormorant Garamond", serif;
+
+          font-size: clamp(40px, 5vw, 60px);
+          font-weight: 500;
+
+          line-height: 1;
+        }
+
+        .hikaye-yazi p {
+          color: #777;
+
+          font-size: 12px;
+
+          line-height: 2.1;
+        }
+
+        .ozellikler {
+          display: grid;
+
+          grid-template-columns: repeat(3, 1fr);
+
+          max-width: 1100px;
+
+          margin: auto;
+
+          overflow: hidden;
+
+          border: 1px solid rgba(255, 255, 255, 0.8);
+          border-radius: 25px;
+
+          background: rgba(255, 255, 255, 0.42);
+
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.9),
+            0 20px 50px rgba(30, 30, 30, 0.04);
+
+          backdrop-filter: blur(22px);
+        }
+
+        .ozellik {
+          padding: 35px 25px;
+
+          text-align: center;
+        }
+
+        .ozellik + .ozellik {
+          border-left: 1px solid rgba(20, 20, 20, 0.08);
+        }
+
+        .ozellik .sembol {
+          color: var(--gold-dark);
+
+          font-size: 25px;
+        }
+
+        .ozellik h3 {
+          margin: 13px 0 8px;
+
+          font-size: 10px;
+          font-weight: 700;
+
+          letter-spacing: 1.5px;
+        }
+
+        .ozellik p {
+          margin: 0;
+
+          color: #858585;
+
+          font-size: 10px;
+
+          line-height: 1.8;
+        }
+
+        .altbilgi {
+          padding: 65px 5% 25px;
+
+          border-top: 1px solid rgba(20, 20, 20, 0.07);
+
+          text-align: center;
+        }
+
+        .altbilgi-logo {
+          width: 100px;
+
+          margin-bottom: 10px;
+
+          mix-blend-mode: multiply;
+        }
+
+        .altbilgi-marka {
+          font-family: "Cormorant Garamond", serif;
+
+          font-size: 34px;
+
+          letter-spacing: 4px;
+        }
+
+        .altbilgi p {
+          color: #858585;
+
+          font-size: 10px;
+
+          line-height: 2;
+        }
+
+        .altbilgi-linkler {
+          display: flex;
+
+          flex-wrap: wrap;
+
+          justify-content: center;
+
+          gap: 22px;
+
+          margin: 25px 0;
+        }
+
+        .altbilgi-linkler button {
+          border: 0;
+
+          background: transparent;
+
+          color: #777;
+
+          font-size: 10px;
+        }
+
+        .altbilgi-linkler button:hover {
+          color: var(--gold-dark);
+        }
+
+        .telif {
+          margin-top: 25px;
+
+          padding-top: 20px;
+
+          border-top: 1px solid rgba(20, 20, 20, 0.07);
+
+          color: #aaa;
+
+          font-size: 8px;
+
+          line-height: 2;
+        }
+
+        /*
+          PANEL ARKA PLANI
+          Menü açıkken sayfanın geri kalanına tıklanamaz.
+          Ayrıca body overflow yukarıdaki useEffect ile kilitleniyor.
+        */
+
+        .arka-plan {
+          position: fixed;
+
+          inset: 0;
+
+          z-index: 90;
+
+          width: 100%;
+          height: 100%;
+
+          border: 0;
+
+          background: rgba(20, 20, 20, 0.25);
+
+          backdrop-filter: blur(7px);
+          -webkit-backdrop-filter: blur(7px);
+
+          cursor: default;
+        }
+
+        .yan-panel {
+          position: fixed;
+
+          top: 0;
+          right: 0;
+
+          z-index: 100;
+
+          display: flex;
+
+          flex-direction: column;
+
+          width: min(440px, 100%);
+
+          height: 100dvh;
+
+          padding: 25px;
+
+          overflow: hidden;
+
+          border-left: 1px solid rgba(255, 255, 255, 0.8);
+
+          background:
+            linear-gradient(
+              145deg,
+              rgba(255, 255, 255, 0.9),
+              rgba(245, 245, 242, 0.82)
+            );
+
+          box-shadow:
+            -20px 0 70px rgba(30, 30, 30, 0.1);
+
+          backdrop-filter: blur(35px) saturate(140%);
+          -webkit-backdrop-filter: blur(35px) saturate(140%);
+
+          animation: panelAc 0.28s ease;
+        }
+
+        .menu-panel {
+          right: auto;
+          left: 0;
+
+          border-right: 1px solid rgba(255, 255, 255, 0.8);
+          border-left: 0;
+
+          box-shadow:
+            20px 0 70px rgba(30, 30, 30, 0.1);
+        }
+
+        @keyframes panelAc {
+          from {
+            opacity: 0;
+            transform: translateX(25px);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+
+        .panel-ust {
+          display: flex;
+
+          align-items: center;
+          justify-content: space-between;
+
+          gap: 12px;
+
+          padding-bottom: 22px;
+
+          border-bottom: 1px solid rgba(20, 20, 20, 0.08);
+        }
+
+        .panel-ust h2 {
+          margin: 0;
+
+          font-family: "Cormorant Garamond", serif;
+
+          font-size: 34px;
+          font-weight: 500;
+        }
+
+        .panel-icerik {
+          flex: 1;
+
+          min-height: 0;
+
+          overflow-y: auto;
+
+          padding: 20px 0;
+
+          overscroll-behavior: contain;
+        }
+
+        .panel-icerik::-webkit-scrollbar {
+          width: 4px;
+        }
+
+        .panel-icerik::-webkit-scrollbar-thumb {
+          border-radius: 20px;
+
+          background: rgba(30, 30, 30, 0.15);
+        }
+
+        .menu-grup-etiket {
+          margin: 23px 0 10px;
+
+          color: var(--gold-dark);
+
+          font-size: 8px;
+          font-weight: 700;
+
+          letter-spacing: 3px;
+        }
+
+        .menu-baglantisi {
+          display: flex;
+
+          width: 100%;
+
+          align-items: center;
+          justify-content: space-between;
+
+          padding: 17px 0;
+
+          border: 0;
+          border-bottom: 1px solid rgba(20, 20, 20, 0.07);
+
+          background: transparent;
+
+          text-align: left;
+
+          font-family: "Cormorant Garamond", serif;
+
+          font-size: 26px;
+
+          transition:
+            color 0.2s,
+            padding-left 0.2s;
+        }
+
+        .menu-baglantisi span {
+          color: var(--gold-dark);
+
+          font-family: "Manrope", sans-serif;
+
+          font-size: 13px;
+        }
+
+        .menu-baglantisi:hover {
+          padding-left: 6px;
+
+          color: var(--gold-dark) !important;
+        }
+
+        .panel-alt {
+          padding-top: 20px;
+
+          border-top: 1px solid rgba(20, 20, 20, 0.08);
+        }
+
+        .panel-alt .buton {
+          width: 100%;
+        }
+
+        .sepet-satiri {
+          display: grid;
+
+          grid-template-columns: 65px minmax(0, 1fr) auto;
+
+          align-items: center;
+
+          gap: 13px;
+
+          padding: 15px 0;
+
+          border-bottom: 1px solid rgba(20, 20, 20, 0.07);
+        }
+
+        .sepet-sembol {
+          display: grid;
+
+          place-items: center;
+
+          width: 65px;
+          height: 70px;
+
+          border-radius: 15px;
+
+          background:
+            linear-gradient(
+              145deg,
+              rgba(255, 255, 255, 0.95),
+              rgba(224, 223, 218, 0.55)
+            );
+
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+          font-size: 30px;
+        }
+
+        .sepet-satiri h3 {
+          margin: 0 0 7px;
+
+          font-family: "Cormorant Garamond", serif;
+
+          font-size: 21px;
+          font-weight: 600;
+        }
+
+        .sepet-satiri p {
+          margin: 0;
+
+          color: var(--gold-dark);
+
+          font-size: 11px;
+          font-weight: 700;
+        }
+
+        .sil-buton {
+          border: 0;
+
+          background: transparent;
+
+          color: #b36c6c !important;
+
+          font-size: 9px;
+          font-weight: 700;
+        }
+
+        .sepet-toplam {
+          display: flex;
+
+          justify-content: space-between;
+
+          gap: 12px;
+
+          margin-bottom: 18px;
+
+          font-size: 12px;
+        }
+
+        .sepet-toplam strong {
+          color: var(--gold-dark);
+        }
+
+        .bos-panel {
+          padding: 50px 10px;
+
+          color: #888;
+
+          text-align: center;
+
+          font-size: 11px;
+
+          line-height: 2;
+        }
+
+        /*
+          ÜRÜN DETAY MODALI
+        */
+
+        .detay-arka {
+          position: fixed;
+
+          inset: 0;
+
+          z-index: 110;
+
+          display: grid;
+
+          place-items: center;
+
+          overflow-y: auto;
+
+          padding: 25px;
+
+          background: rgba(30, 30, 30, 0.27);
+
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+
+          animation: detayArkaAc 0.2s ease;
+        }
+
+        @keyframes detayArkaAc {
+          from {
+            opacity: 0;
+          }
+
+          to {
+            opacity: 1;
+          }
+        }
+
+        .detay-kart {
+          position: relative;
+
+          display: grid;
+
+          grid-template-columns: 1fr 1fr;
+
+          width: min(900px, 100%);
+
+          overflow: hidden;
+
+          border: 1px solid rgba(255, 255, 255, 0.9);
+
+          border-radius: 30px;
+
+          background:
+            linear-gradient(
+              145deg,
+              rgba(255, 255, 255, 0.9),
+              rgba(245, 244, 240, 0.84)
+            );
+
+          box-shadow:
+            0 40px 100px rgba(20, 20, 20, 0.18),
+            inset 0 1px 0 rgba(255, 255, 255, 0.95);
+
+          backdrop-filter: blur(35px);
+          -webkit-backdrop-filter: blur(35px);
+
+          animation: detayAc 0.28s ease;
+        }
+
+        @keyframes detayAc {
+          from {
+            opacity: 0;
+            transform: translateY(15px) scale(0.98);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        .detay-gorsel {
+          position: relative;
+
+          display: grid;
+
+          place-items: center;
+
+          min-height: 430px;
+
+          background:
+            radial-gradient(
+              circle,
+              rgba(255, 255, 255, 0.95),
+              rgba(225, 224, 219, 0.6)
+            );
+        }
+
+        .detay-gorsel::before {
+          position: absolute;
+
+          width: 250px;
+          height: 250px;
+
+          border: 1px solid rgba(30, 30, 30, 0.07);
+
+          border-radius: 50%;
+
+          box-shadow:
+            0 0 0 30px rgba(255, 255, 255, 0.2),
+            0 0 0 60px rgba(255, 255, 255, 0.1);
+
+          content: "";
+        }
+
+        .detay-sembol {
+          position: relative;
+          z-index: 1;
+
+          font-size: 115px;
+
+          filter:
+            drop-shadow(0 25px 20px rgba(0, 0, 0, 0.12));
+        }
+
+        .detay-icerik {
+          align-self: center;
+
+          padding: 45px;
+        }
+
+        .detay-icerik h2 {
+          margin: 12px 0;
+
+          font-family: "Cormorant Garamond", serif;
+
+          font-size: 48px;
+          font-weight: 500;
+
+          line-height: 1;
+        }
+
+        .detay-icerik p {
+          color: #777;
+
+          font-size: 11px;
+
+          line-height: 2;
+        }
+
+        .detay-fiyat {
+          display: block;
+
+          margin: 26px 0;
+
+          color: var(--gold-dark);
+
+          font-size: 21px;
+        }
+
+        .detay-kapat {
+          position: absolute;
+
+          top: 14px;
+          right: 14px;
+
+          z-index: 3;
+
+          display: grid;
+
+          place-items: center;
+
+          width: 40px;
+          height: 40px;
+
+          border: 1px solid rgba(20, 20, 20, 0.09);
+
+          border-radius: 50%;
+
+          background: rgba(255, 255, 255, 0.7);
+
+          font-size: 18px;
+
+          backdrop-filter: blur(12px);
+
+          transition:
+            transform 0.2s,
+            background 0.2s;
+        }
+
+        .detay-kapat:hover {
+          transform: rotate(90deg);
+
+          background: white;
+        }
+
+        .bildirim {
+          position: fixed;
+
+          right: 22px;
+          bottom: 22px;
+
+          z-index: 150;
+
+          max-width: calc(100% - 44px);
+
+          padding: 15px 20px;
+
+          border: 1px solid rgba(168, 138, 86, 0.25);
+
+          border-radius: 50px;
+
+          background: rgba(255, 255, 255, 0.86);
+
+          color: #303030;
+
+          font-size: 10px;
+          font-weight: 600;
+
+          box-shadow:
+            0 15px 40px rgba(30, 30, 30, 0.12);
+
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+
+          animation: bildirimAc 0.25s ease;
+        }
+
+        @keyframes bildirimAc {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @media (max-width: 900px) {
+          .urun-grid {
+            grid-template-columns:
+              repeat(2, minmax(0, 1fr));
+
+            gap: 15px;
+          }
+
+          .hikaye {
+            gap: 35px;
+          }
+
+          .detay-gorsel {
+            min-height: 360px;
+          }
+        }
+
+        @media (max-width: 620px) {
+          .duyuru {
+            padding: 8px 12px;
+
+            font-size: 7px;
+            letter-spacing: 2px;
+          }
+
+          .ust-menu {
+            padding: 10px 4%;
+          }
+
+          .ikon-grup {
+            gap: 4px;
+          }
+
+          .ikon-dugme {
+            width: 37px;
+            height: 37px;
+
+            font-size: 17px;
+          }
+
+          .logo-header {
+            width: 74px;
+            height: 43px;
+          }
+
+          .marka-kucuk {
+            display: none;
+          }
+
+          .hero {
+            min-height: 610px;
+
+            padding: 60px 18px 80px;
+          }
+
+          .hero-logo-wrap {
+            width: min(350px, 92vw);
+            height: 240px;
+
+            border-radius: 42%;
+          }
+
+          .hero-logo {
+            width: min(270px, 72vw);
+          }
+
+          .hero h1 {
+            font-size: clamp(42px, 12vw, 65px);
+
+            letter-spacing: 4px;
+          }
+
+          .hero-aciklama {
+            font-size: 11px;
+          }
+
+          .bolum {
+            padding: 70px 4%;
+          }
+
+          .koleksiyon-ust {
+            align-items: stretch;
+          }
+
+          .arama-alani {
+            max-width: none;
+          }
+
+          .kategori-listesi {
+            width: 100%;
+          }
+
+          .kategori-buton {
+            flex: 1;
+
+            min-width: max-content;
+
+            padding: 9px 11px;
+
+            font-size: 8px;
+          }
+
+          .urun-grid {
+            grid-template-columns:
+              repeat(2, minmax(0, 1fr));
+
+            gap: 9px;
+          }
+
+          .urun-gorsel {
+            min-height: 175px;
+          }
+
+          .urun-gorsel::before {
+            width: 110px;
+            height: 110px;
+          }
+
+          .urun-sembol {
+            font-size: 55px;
+          }
+
+          .urun-etiket {
+            top: 7px;
+            left: 7px;
+
+            padding: 5px 6px;
+
+            font-size: 6px;
+          }
+
+          .favori-kalp {
+            top: 7px;
+            right: 7px;
+
+            width: 32px;
+            height: 32px;
+
+            font-size: 14px;
+          }
+
+          .urun-bilgi {
+            padding: 13px;
+          }
+
+          .urun-bilgi h3 {
+            font-size: 22px;
+          }
+
+          .urun-aciklama {
+            min-height: 58px;
+
+            font-size: 9px;
+          }
+
+          .urun-alt {
+            align-items: flex-start;
+
+            flex-direction: column;
+
+            gap: 8px;
+          }
+
+          .urun-fiyat {
+            font-size: 11px;
+          }
+
+          .urun-incele {
+            font-size: 8px;
+          }
+
+          .urunler-hero {
+            padding: 65px 5% 40px;
+          }
+
+          .urunler-hero h1 {
+            font-size: 44px;
+
+            letter-spacing: 2px;
+          }
+
+          .urunler-icerik {
+            width: 92%;
+          }
+
+          .hikaye {
+            grid-template-columns: 1fr;
+
+            gap: 30px;
+          }
+
+          .hikaye-gorsel {
+            min-height: 290px;
+          }
+
+          .hikaye-logo {
+            width: 220px;
+          }
+
+          .hikaye-yazi h2 {
+            font-size: 45px;
+          }
+
+          .ozellikler {
+            grid-template-columns: 1fr;
+          }
+
+          .ozellik + .ozellik {
+            border-top: 1px solid rgba(20, 20, 20, 0.08);
+            border-left: 0;
+          }
+
+          .yan-panel {
+            width: 100%;
+
+            padding: 20px;
+          }
+
+          .detay-arka {
+            padding: 14px;
+          }
+
+          .detay-kart {
+            grid-template-columns: 1fr;
+
+            max-width: 450px;
+
+            border-radius: 24px;
+          }
+
+          .detay-gorsel {
+            min-height: 240px;
+          }
+
+          .detay-sembol {
+            font-size: 75px;
+          }
+
+          .detay-icerik {
+            padding: 25px;
+          }
+
+          .detay-icerik h2 {
+            font-size: 38px;
+          }
+
+          .bildirim {
+            right: 12px;
+            bottom: 12px;
+
+            max-width: calc(100% - 24px);
+
+            padding: 13px 17px;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          *,
+          *::before,
+          *::after {
+            scroll-behavior: auto !important;
+
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+
+            transition-duration: 0.01ms !important;
+          }
+        }
+      `}</style>
+
+      {/* DUYURU */}
+      <div className="duyuru">
+        ZAMANSIZ TASARIM · MODERN ZARAFET · ZYREN VERSÉ
       </div>
 
-      <div className="relative z-10 mx-auto max-w-7xl px-5 sm:px-8">
-        {/* Üst menü */}
-        <header className="sticky top-4 z-30 mt-4 flex items-center justify-between rounded-3xl border border-white/90 bg-white/65 px-5 py-4 shadow-lg shadow-black/[0.03] backdrop-blur-2xl">
+      {/* HEADER */}
+      <header className="ust-menu">
+        <div className="ikon-grup">
           <button
-            type="button"
-            onClick={() => navigate("menu")}
+            className="ikon-dugme"
             aria-label="Menüyü aç"
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white bg-white/65 text-xl transition hover:bg-white"
+            onClick={() => {
+              setMenuAcik(true);
+              setFavorilerAcik(false);
+              setSepetAcik(false);
+            }}
           >
             ☰
           </button>
+        </div>
 
-          <button
-            type="button"
-            onClick={() => navigate("home")}
-            className="text-center"
-          >
-            <span className="block text-xl font-semibold tracking-[0.28em]">
-              Zyren
-            </span>
-            <span className="mt-1 block text-[9px] tracking-[0.4em] text-gray-500">
-              Versé
-            </span>
-          </button>
+        <button
+          className="marka"
+          aria-label="Ana sayfaya git"
+          onClick={() => sayfayaGit("ana")}
+        >
+          <img
+            className="logo-header"
+            src="/zyren-logo.png"
+            alt="ZYREN VERSÉ"
+          />
 
+          <span className="marka-kucuk">
+            TIMELESS ELEGANCE
+          </span>
+        </button>
+
+        <div className="ikon-grup ust-sag">
           <button
-            type="button"
-            onClick={() => navigate("favorites")}
+            className="ikon-dugme"
             aria-label="Favoriler"
-            className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-white bg-white/65 text-2xl transition hover:bg-white"
+            onClick={() => {
+              setFavorilerAcik(true);
+              setSepetAcik(false);
+              setMenuAcik(false);
+            }}
           >
             ♡
-            {favorites.length > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#302842] px-1 text-[10px] text-white">
-                {favorites.length}
+
+            {favoriler.length > 0 && (
+              <span className="rozet">
+                {favoriler.length}
               </span>
             )}
           </button>
-        </header>
 
-        {/* Bildirim */}
-        {notice && (
-          <div
-            role="status"
-            className="fixed left-1/2 top-24 z-50 -translate-x-1/2 rounded-2xl border border-white bg-white/90 px-5 py-3 text-sm shadow-xl backdrop-blur-xl"
+          <button
+            className="ikon-dugme"
+            aria-label="Sepet"
+            onClick={() => {
+              setSepetAcik(true);
+              setFavorilerAcik(false);
+              setMenuAcik(false);
+            }}
           >
-            {notice}
-          </div>
-        )}
+            🛒
 
-        {/* Ana sayfa */}
-        {tab === "home" && !selected && (
-          <>
-            <section className="grid items-center gap-12 py-16 md:min-h-[680px] md:grid-cols-2 md:py-20">
-              <div className="py-8">
-                <div className="inline-flex items-center gap-3 rounded-full border border-white bg-white/65 px-4 py-2.5 text-[10px] tracking-[0.25em] text-gray-600 shadow-sm backdrop-blur-xl">
-                  <span className="h-2 w-2 rounded-full bg-violet-400" />
-                  THE ART OF ELEGANCE
-                </div>
+            {sepet.length > 0 && (
+              <span className="rozet">
+                {sepet.length}
+              </span>
+            )}
+          </button>
+        </div>
+      </header>
 
-                <h1 className="mt-8 text-5xl font-light leading-[1.12] tracking-tight sm:text-6xl lg:text-7xl">
-                  Zarafetin
-                  <br />
-                  <span className="font-semibold">yeni</span> bir hali.
-                </h1>
-
-                <p className="mt-7 max-w-md text-base leading-8 text-gray-600">
-                  Sadelikten ilham alan tasarımlar, zamansız bir stil ve
-                  kendine özgü bir dünya. Velora ile detayların gücünü keşfet.
-                </p>
-
-                <button
-                  type="button"
-                  onClick={() => navigate("categories")}
-                  className="mt-9 rounded-2xl bg-[#29243b] px-7 py-4 text-sm text-white shadow-xl shadow-[#29243b]/15 transition hover:-translate-y-1 hover:bg-[#403653]"
-                >
-                  Koleksiyonu keşfet <span className="ml-3">↗</span>
-                </button>
-
-                <div className="mt-12 flex gap-10 border-t border-black/10 pt-6">
-                  <div>
-                    <p className="text-xl font-medium">01</p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      Özgün tasarım
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xl font-medium">∞</p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      Zamansız stil
-                    </p>
-                  </div>
-                </div>
+      {/* ANA SAYFA */}
+      {sayfa === "ana" ? (
+        <>
+          <section
+            className="hero"
+            id="ana-sayfa"
+          >
+            <div className="hero-icerik">
+              <div className="ust-etiket">
+                ZARAFETİN YENİ YORUMU
               </div>
 
-              {/* Yenilenen kuğu vitrini */}
-              <div className="relative mx-auto w-full max-w-md">
-                <div className="absolute inset-12 rounded-full bg-violet-300/30 blur-[90px]" />
-
-                <div className="relative overflow-hidden rounded-[2.5rem] border border-white/90 bg-gradient-to-br from-white/85 via-white/55 to-violet-100/65 p-5 shadow-2xl shadow-violet-900/[0.08] backdrop-blur-2xl sm:p-7">
-                  {/* Marka ve rozet: halka alanından tamamen ayrı */}
-                  <div className="relative z-20 flex min-h-[48px] items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] tracking-[0.35em] text-gray-500">
-                        Zyren Versé
-
-                      </p>
-                      <p className="mt-1 text-xs text-gray-400">
-                        Fine Jewelry
-                      </p>
-                    </div>
-
-                    <span className="shrink-0 rounded-full border border-white bg-white/80 px-3 py-2.5 text-[9px] tracking-[0.16em] text-[#51466d] shadow-sm backdrop-blur-xl">
-                      EXCLUSIVE EDITION
-                    </span>
-                  </div>
-
-                  {/* Kuğu ve halkalar için bağımsız alan */}
-                  <div className="relative mx-auto mt-7 flex aspect-square w-full max-w-[330px] items-center justify-center">
-                    <div className="absolute h-[94%] w-[94%] rounded-full border border-white/90" />
-
-                    <div className="absolute h-[78%] w-[78%] rounded-full border border-violet-200/70" />
-
-                    <div className="absolute h-[63%] w-[63%] rounded-full border border-white/90 bg-white/35 shadow-[inset_0_0_40px_rgba(255,255,255,0.8)] backdrop-blur-xl" />
-
-                    <div className="relative z-10 flex h-40 w-40 items-center justify-center rounded-full bg-gradient-to-br from-white/70 to-violet-100/40 sm:h-48 sm:w-48">
-                      <span
-                        className="select-none text-[105px] drop-shadow-[0_12px_15px_rgba(65,48,100,0.15)] sm:text-[125px]"
-                        aria-label="Velora kuğu sembolü"
-                      >
-                        🦢
-                      </span>
-                    </div>
-
-                    <span className="absolute right-[13%] top-[19%] text-2xl text-violet-300">
-                      ✧
-                    </span>
-
-                    <span className="absolute bottom-[15%] left-[12%] text-xl text-white">
-                      ✧
-                    </span>
-                  </div>
-
-                  {/* Başlık ve buton için ayrı alt bölüm */}
-                  <div className="relative z-10 mt-4 border-t border-white/90 pt-6 text-center">
-                    <p className="text-[9px] tracking-[0.4em] text-gray-400">
-                      TIMELESS ELEGANCE
-                    </p>
-
-                    <h2 className="mt-3 text-3xl font-light tracking-[0.1em]">
-                      Swan Collection
-                    </h2>
-
-                    <p className="mx-auto mt-3 max-w-xs text-sm leading-6 text-gray-500">
-                      Zarafetin en sade hali. Her detayda kendine özgü bir
-                      ışıltı.
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={() => navigate("categories")}
-                      className="mt-6 rounded-2xl border border-white bg-white/75 px-6 py-3.5 text-xs tracking-[0.12em] shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg"
-                    >
-                      KOLEKSİYONU KEŞFET <span className="ml-2">↗</span>
-                    </button>
-                  </div>
-
-                  <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/60 blur-3xl" />
-                </div>
-              </div>
-            </section>
-
-            <section className="pb-12">
-              <div className="mb-8 flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-[10px] tracking-[0.3em] text-gray-500">
-                    SENİN İÇİN SEÇİLDİ
-                  </p>
-                  <h2 className="mt-3 text-3xl font-light sm:text-4xl">
-                    Öne çıkanlar
-                  </h2>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => navigate("categories")}
-                  className="text-sm text-gray-600 hover:text-black"
-                >
-                  Tümünü gör ↗
-                </button>
+              <div className="hero-logo-wrap">
+                <img
+                  className="hero-logo"
+                  src="/zyren-logo.png"
+                  alt="ZYREN VERSÉ kuğu logosu"
+                />
               </div>
 
-              <ProductGrid
-                items={products}
-                favorites={favorites}
-                onFavorite={toggleFavorite}
-                onAddToCart={addToCart}
-                onSelect={setSelected}
-              />
-            </section>
-          </>
-        )}
+              <h1>ZYREN VERSÉ</h1>
 
-        {/* Koleksiyon ve favoriler */}
-        {(tab === "categories" || tab === "favorites") && !selected && (
-          <section className="min-h-[65vh] py-16">
-            <p className="text-[10px] tracking-[0.3em] text-gray-500">
-              ZYREN VERSÉ
-            </p>
+              <p className="hero-aciklama">
+                Her detayda zarafet, her tasarımda karakter.
+                Kendine özgü stilini zamansız parçalarla keşfet.
+              </p>
 
-            <h1 className="mt-4 text-4xl font-light sm:text-5xl">
-              {tab === "favorites" ? "Favorilerin" : "Koleksiyon"}
-            </h1>
+              <button
+                className="buton"
+                onClick={() => bolumeGit("koleksiyon")}
+              >
+                KOLEKSİYONU KEŞFET
+                <span>↗</span>
+              </button>
+            </div>
+          </section>
 
-            {tab === "categories" && (
-              <div className="my-8 flex flex-wrap gap-3">
-                {categories.map((item) => (
+          {/* KOLEKSİYON */}
+          <section
+            className="bolum"
+            id="koleksiyon"
+          >
+            <div className="bolum-baslik">
+              <span>ÖZENLE SEÇİLDİ</span>
+
+              <h2>Öne Çıkan Koleksiyon</h2>
+
+              <p>
+                Günlük stilinden özel anlarına, sana eşlik
+                edecek tasarımlar.
+              </p>
+            </div>
+
+            <div className="koleksiyon-ust">
+              <label className="arama-alani">
+                <span>⌕</span>
+
+                <input
+                  type="search"
+                  placeholder="Ürün ara..."
+                  value={arama}
+                  onChange={(e) =>
+                    setArama(e.target.value)
+                  }
+                />
+              </label>
+
+              <div className="kategori-listesi">
+                {KATEGORILER.map((item) => (
                   <button
                     key={item}
-                    type="button"
-                    onClick={() => setCategory(item)}
-                    className={`rounded-full border px-5 py-3 text-sm transition ${
-                      category === item
-                        ? "border-[#29243b] bg-[#29243b] text-white"
-                        : "border-white bg-white/65 text-gray-600 hover:bg-white"
+                    className={`kategori-buton ${
+                      kategori === item ? "aktif" : ""
                     }`}
+                    onClick={() => setKategori(item)}
                   >
                     {item}
                   </button>
                 ))}
               </div>
-            )}
+            </div>
 
-            <div className="mt-8">
-              {displayedProducts.length > 0 ? (
-                <ProductGrid
-                  items={displayedProducts}
-                  favorites={favorites}
-                  onFavorite={toggleFavorite}
-                  onAddToCart={addToCart}
-                  onSelect={setSelected}
-                />
-              ) : (
-                <div className="rounded-3xl border border-white bg-white/60 px-6 py-20 text-center backdrop-blur-xl">
-                  <p className="text-4xl">♡</p>
-                  <h2 className="mt-5 text-xl font-medium">
-                    Henüz favori ürünün yok.
-                  </h2>
-                  <p className="mt-3 text-sm text-gray-500">
-                    Beğendiğin ürünleri favorilerine eklediğinde burada
-                    görebilirsin.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => navigate("categories")}
-                    className="mt-6 rounded-xl bg-[#29243b] px-5 py-3 text-sm text-white"
-                  >
-                    Koleksiyonu keşfet
-                  </button>
+            <div className="tum-urunler">
+              <button
+                className="buton buton-ikincil"
+                onClick={() => sayfayaGit("urunler")}
+              >
+                TÜM ÜRÜNLERİ GÖR
+                <span>↗</span>
+              </button>
+            </div>
+
+            <div className="urun-grid">
+              {filtrelenmisUrunler.length === 0 ? (
+                <div className="bos-sonuc">
+                  Aramana uygun ürün bulunamadı.
                 </div>
+              ) : (
+                filtrelenmisUrunler.map((urun) => (
+                  <article
+                    className="urun-kart"
+                    key={urun.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${urun.isim} ürün detaylarını aç`}
+                    onClick={() =>
+                      urunKartiniAc(urun)
+                    }
+                    onKeyDown={(event) =>
+                      urunKartKlavyedenAc(
+                        event,
+                        urun
+                      )
+                    }
+                  >
+                    <div className="urun-gorsel">
+                      {urun.etiket && (
+                        <span className="urun-etiket">
+                          {urun.etiket}
+                        </span>
+                      )}
+
+                      <button
+                        className={`favori-kalp ${
+                          favoriler.includes(urun.id)
+                            ? "aktif"
+                            : ""
+                        }`}
+                        aria-label={
+                          favoriler.includes(urun.id)
+                            ? "Favorilerden çıkar"
+                            : "Favorilere ekle"
+                        }
+                        onClick={(event) => {
+                          event.stopPropagation();
+
+                          favoriDegistir(
+                            urun.id
+                          );
+                        }}
+                      >
+                        {favoriler.includes(
+                          urun.id
+                        )
+                          ? "♥"
+                          : "♡"}
+                      </button>
+
+                      <span className="urun-sembol">
+                        {urun.sembol}
+                      </span>
+                    </div>
+
+                    <div className="urun-bilgi">
+                      <div className="urun-kategori">
+                        {urun.kategori}
+                      </div>
+
+                      <h3>{urun.isim}</h3>
+
+                      <p className="urun-aciklama">
+                        {urun.aciklama}
+                      </p>
+
+                      <div className="urun-alt">
+                        <span className="urun-fiyat">
+                          {PARA(urun.fiyat)}
+                        </span>
+
+                        <button
+                          className="urun-incele"
+                          onClick={(event) => {
+                            event.stopPropagation();
+
+                            setSeciliUrun(
+                              urun
+                            );
+                          }}
+                        >
+                          DETAYLAR ↗
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))
               )}
             </div>
           </section>
-        )}
 
-        {/* Ürün detayı */}
-        {selected && (
-          <section className="min-h-[65vh] py-12">
-            <button
-              type="button"
-              onClick={() => setSelected(null)}
-              className="mb-8 rounded-xl border border-white bg-white/70 px-4 py-3 text-sm backdrop-blur-xl"
-            >
-              ← Geri dön
-            </button>
-
-            <div className="grid gap-10 md:grid-cols-2">
-              <div className="flex min-h-[360px] items-center justify-center rounded-[2rem] border border-white bg-gradient-to-br from-white/80 to-violet-100/70 shadow-xl backdrop-blur-xl">
-                <span className="text-[140px] drop-shadow-lg">
-                  {selected.symbol}
-                </span>
+          {/* HİKAYE */}
+          <section
+            className="bolum"
+            id="hikayemiz"
+          >
+            <div className="hikaye">
+              <div className="hikaye-gorsel">
+                <img
+                  className="hikaye-logo"
+                  src="/zyren-logo.png"
+                  alt="ZYREN VERSÉ kuğu logosu"
+                />
               </div>
 
-              <div className="flex flex-col justify-center">
-                <p className="text-xs tracking-[0.3em] text-gray-500">
-                  {selected.category.toUpperCase()}
+              <div className="hikaye-yazi">
+                <span className="ust-etiket">
+                  BİZİM HİKÂYEMİZ
+                </span>
+
+                <h2>
+                  Zarafet,
+                  <br />
+                  bir duruştur.
+                </h2>
+
+                <p>
+                  ZYREN VERSÉ, kişisel tarzın
+                  özgünlüğünü ve zamansız tasarımın
+                  güzelliğini bir araya getirme
+                  fikrinden doğdu.
                 </p>
-                <h1 className="mt-4 text-4xl font-light sm:text-5xl">
-                  {selected.name}
-                </h1>
-                <p className="mt-5 text-2xl">
-                  {formatPrice(selected.price)}
-                </p>
-                <p className="mt-5 max-w-md leading-8 text-gray-600">
-                  {selected.description}
+
+                <p>
+                  Kuğunun zarif siluetinden ilham
+                  alan marka kimliğimiz; sadeliği,
+                  karakteri ve kendine özgü olmayı
+                  temsil ediyor.
                 </p>
 
                 <button
-                  type="button"
-                  onClick={() => addToCart(selected.id)}
-                  className="mt-8 rounded-2xl bg-[#29243b] px-6 py-4 text-sm text-white transition hover:bg-[#403653]"
+                  className="buton buton-ikincil"
+                  onClick={() =>
+                    sayfayaGit("urunler")
+                  }
                 >
-                  Sepete ekle
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => toggleFavorite(selected.id)}
-                  className="mt-3 rounded-2xl border border-white bg-white/70 px-6 py-4 text-sm backdrop-blur-xl"
-                >
-                  {favorites.includes(selected.id)
-                    ? "♥ Favorilerden çıkar"
-                    : "♡ Favorilere ekle"}
+                  TASARIMLARI KEŞFET ↗
                 </button>
               </div>
             </div>
           </section>
-        )}
 
-        {/* Sepet */}
-        {tab === "cart" && (
-          <section className="min-h-[65vh] py-16">
-            <p className="text-[10px] tracking-[0.3em] text-gray-500">
-              ALIŞVERİŞ ÇANTAN
-            </p>
-            <h1 className="mt-4 text-4xl font-light sm:text-5xl">Sepetin</h1>
+          {/* ÖZELLİKLER */}
+          <section className="bolum">
+            <div className="ozellikler">
+              <div className="ozellik">
+                <div className="sembol">
+                  ✧
+                </div>
 
-            {cartProducts.length === 0 ? (
-              <div className="mt-10 rounded-3xl border border-white bg-white/60 px-6 py-20 text-center backdrop-blur-xl">
-                <p className="text-5xl">♧</p>
-                <h2 className="mt-5 text-xl font-medium">
-                  Sepetin şu an boş.
-                </h2>
-                <p className="mt-3 text-sm text-gray-500">
-                  Koleksiyonu keşfet ve beğendiğin tasarımlara göz at.
+                <h3>
+                  ZAMANSIZ TASARIM
+                </h3>
+
+                <p>
+                  Geçici trendlerden bağımsız,
+                  kendine özgü çizgiler.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => navigate("categories")}
-                  className="mt-6 rounded-xl bg-[#29243b] px-5 py-3 text-sm text-white"
-                >
-                  Koleksiyona göz at
-                </button>
               </div>
-            ) : (
-              <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_340px]">
-                <div className="space-y-4">
-                  {cartProducts.map((product, index) => (
-                    <div
-                      key={`${product.id}-${index}`}
-                      className="flex items-center gap-4 rounded-3xl border border-white bg-white/65 p-4 shadow-sm backdrop-blur-xl"
-                    >
-                      <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-violet-100/60 text-4xl">
-                        {product.symbol}
+
+              <div className="ozellik">
+                <div className="sembol">
+                  ◇
+                </div>
+
+                <h3>
+                  DETAYLARA ÖZEN
+                </h3>
+
+                <p>
+                  Her parçanın görünümünde
+                  sadelik ve uyum.
+                </p>
+              </div>
+
+              <div className="ozellik">
+                <div className="sembol">
+                  🦢
+                </div>
+
+                <h3>
+                  ÖZGÜN KARAKTER
+                </h3>
+
+                <p>
+                  Stilini yansıtan, kişisel
+                  bir dokunuş.
+                </p>
+              </div>
+            </div>
+          </section>
+        </>
+      ) : (
+        <>
+          {/* ÜRÜNLER SAYFASI */}
+          <section className="urunler-hero">
+            <div className="ust-etiket">
+              ZYREN VERSÉ KOLEKSİYONU
+            </div>
+
+            <h1>Tüm Ürünler</h1>
+
+            <p>
+              Kendine özgü tarzını keşfet.
+              Zamansız tasarımları incele,
+              favorilerini seç ve sana hitap
+              eden parçaları bul.
+            </p>
+          </section>
+
+          <section className="urunler-icerik">
+            <div className="koleksiyon-ust">
+              <label className="arama-alani">
+                <span>⌕</span>
+
+                <input
+                  type="search"
+                  placeholder="Ürün adıyla ara..."
+                  value={arama}
+                  onChange={(e) =>
+                    setArama(e.target.value)
+                  }
+                />
+              </label>
+
+              <div className="kategori-listesi">
+                {KATEGORILER.map((item) => (
+                  <button
+                    key={item}
+                    className={`kategori-buton ${
+                      kategori === item
+                        ? "aktif"
+                        : ""
+                    }`}
+                    onClick={() =>
+                      setKategori(item)
+                    }
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="urun-sayaci">
+              {filtrelenmisUrunler.length} ÜRÜN
+              GÖSTERİLİYOR
+            </div>
+
+            <div className="urun-grid">
+              {filtrelenmisUrunler.length === 0 ? (
+                <div className="bos-sonuc">
+                  Aramana uygun ürün bulunamadı.
+                  Başka bir ürün adı deneyebilirsin.
+                </div>
+              ) : (
+                filtrelenmisUrunler.map((urun) => (
+                  <article
+                    className="urun-kart"
+                    key={urun.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${urun.isim} ürün detaylarını aç`}
+                    onClick={() =>
+                      urunKartiniAc(urun)
+                    }
+                    onKeyDown={(event) =>
+                      urunKartKlavyedenAc(
+                        event,
+                        urun
+                      )
+                    }
+                  >
+                    <div className="urun-gorsel">
+                      {urun.etiket && (
+                        <span className="urun-etiket">
+                          {urun.etiket}
+                        </span>
+                      )}
+
+                      <button
+                        className={`favori-kalp ${
+                          favoriler.includes(
+                            urun.id
+                          )
+                            ? "aktif"
+                            : ""
+                        }`}
+                        aria-label={
+                          favoriler.includes(
+                            urun.id
+                          )
+                            ? "Favorilerden çıkar"
+                            : "Favorilere ekle"
+                        }
+                        onClick={(event) => {
+                          event.stopPropagation();
+
+                          favoriDegistir(
+                            urun.id
+                          );
+                        }}
+                      >
+                        {favoriler.includes(
+                          urun.id
+                        )
+                          ? "♥"
+                          : "♡"}
+                      </button>
+
+                      <span className="urun-sembol">
+                        {urun.sembol}
+                      </span>
+                    </div>
+
+                    <div className="urun-bilgi">
+                      <div className="urun-kategori">
+                        {urun.kategori}
                       </div>
 
-                      <div className="min-w-0 flex-1">
-                        <h2 className="font-medium">{product.name}</h2>
-                        <p className="mt-1 text-sm text-gray-500">
-                          {formatPrice(product.price)}
+                      <h3>{urun.isim}</h3>
+
+                      <p className="urun-aciklama">
+                        {urun.aciklama}
+                      </p>
+
+                      <div className="urun-alt">
+                        <span className="urun-fiyat">
+                          {PARA(urun.fiyat)}
+                        </span>
+
+                        <button
+                          className="urun-incele"
+                          onClick={(event) => {
+                            event.stopPropagation();
+
+                            setSeciliUrun(
+                              urun
+                            );
+                          }}
+                        >
+                          DETAYLAR ↗
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))
+              )}
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* FOOTER */}
+      <footer
+        className="altbilgi"
+        id="iletisim"
+      >
+        <img
+          className="altbilgi-logo"
+          src="/zyren-logo.png"
+          alt="ZYREN VERSÉ"
+        />
+
+        <div className="altbilgi-marka">
+          ZYREN VERSÉ
+        </div>
+
+        <p>
+          Timeless elegance. Your own expression.
+        </p>
+
+        <div className="altbilgi-linkler">
+          <button
+            onClick={() =>
+              sayfayaGit("ana")
+            }
+          >
+            Ana Sayfa
+          </button>
+
+          <button
+            onClick={() =>
+              sayfayaGit("urunler")
+            }
+          >
+            Tüm Ürünler
+          </button>
+
+          <button
+            onClick={() =>
+              bolumeGit("hikayemiz")
+            }
+          >
+            Hikâyemiz
+          </button>
+
+          <button
+            onClick={() =>
+              bildirimGoster(
+                "Bu demo sürümünde iletişim formu henüz aktif değil."
+              )
+            }
+          >
+            İletişim
+          </button>
+        </div>
+
+        <div className="telif">
+          © {new Date().getFullYear()} ZYREN
+          VERSÉ. Tüm hakları saklıdır.
+          <br />
+          Bu site geliştirme ve tanıtım amaçlı
+          bir demo projesidir.
+        </div>
+      </footer>
+
+      {/* SOL MENÜ / FAVORİ / SEPET */}
+      {(menuAcik ||
+        favorilerAcik ||
+        sepetAcik) && (
+        <>
+          <button
+            className="arka-plan"
+            aria-label="Paneli kapat"
+            onClick={panelleriKapat}
+          />
+
+          <aside
+            className={`yan-panel ${
+              menuAcik
+                ? "menu-panel"
+                : ""
+            }`}
+            aria-label={
+              menuAcik
+                ? "Keşfet menüsü"
+                : favorilerAcik
+                  ? "Favoriler"
+                  : "Sepet"
+            }
+          >
+            <div className="panel-ust">
+              <h2>
+                {menuAcik
+                  ? "Keşfet"
+                  : favorilerAcik
+                    ? "Favorilerim"
+                    : "Alışveriş Sepetim"}
+              </h2>
+
+              <button
+                className="ikon-dugme"
+                aria-label="Kapat"
+                onClick={panelleriKapat}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* MENÜ */}
+            {menuAcik && (
+              <div className="panel-icerik">
+                <div className="menu-grup-etiket">
+                  KEŞFET
+                </div>
+
+                <button
+                  className="menu-baglantisi"
+                  onClick={() =>
+                    sayfayaGit("ana")
+                  }
+                >
+                  Ana Sayfa
+                  <span>↗</span>
+                </button>
+
+                <button
+                  className="menu-baglantisi"
+                  onClick={() =>
+                    bolumeGit("koleksiyon")
+                  }
+                >
+                  Koleksiyon
+                  <span>↗</span>
+                </button>
+
+                <button
+                  className="menu-baglantisi"
+                  onClick={() =>
+                    sayfayaGit("urunler")
+                  }
+                >
+                  Tüm Ürünler
+                  <span>↗</span>
+                </button>
+
+                <div className="menu-grup-etiket">
+                  KATEGORİLER
+                </div>
+
+                {KATEGORILER.filter(
+                  (item) =>
+                    item !== "Tümü"
+                ).map((item) => (
+                  <button
+                    key={item}
+                    className="menu-baglantisi"
+                    onClick={() =>
+                      kategoriSec(item)
+                    }
+                  >
+                    {item}
+                    <span>↗</span>
+                  </button>
+                ))}
+
+                <button
+                  className="menu-baglantisi"
+                  onClick={() =>
+                    kategoriSec("Tümü")
+                  }
+                >
+                  Tüm kategoriler
+                  <span>↗</span>
+                </button>
+
+                <div className="menu-grup-etiket">
+                  ZYREN VERSÉ
+                </div>
+
+                <button
+                  className="menu-baglantisi"
+                  onClick={() =>
+                    bolumeGit("hikayemiz")
+                  }
+                >
+                  Hikâyemiz
+                  <span>↗</span>
+                </button>
+
+                <button
+                  className="menu-baglantisi"
+                  onClick={() =>
+                    bolumeGit("iletisim")
+                  }
+                >
+                  İletişim
+                  <span>↗</span>
+                </button>
+              </div>
+            )}
+
+            {/* FAVORİLER */}
+            {favorilerAcik && (
+              <div className="panel-icerik">
+                {favoriler.length === 0 ? (
+                  <div className="bos-panel">
+                    <div
+                      style={{
+                        fontSize: 40,
+                      }}
+                    >
+                      ♡
+                    </div>
+
+                    Henüz favorilerine
+                    ürün eklememişsin.
+                  </div>
+                ) : (
+                  URUNLER.filter(
+                    (urun) =>
+                      favoriler.includes(
+                        urun.id
+                      )
+                  ).map((urun) => (
+                    <div
+                      className="sepet-satiri"
+                      key={urun.id}
+                    >
+                      <div className="sepet-sembol">
+                        {urun.sembol}
+                      </div>
+
+                      <div>
+                        <h3>
+                          {urun.isim}
+                        </h3>
+
+                        <p>
+                          {PARA(
+                            urun.fiyat
+                          )}
                         </p>
                       </div>
 
                       <button
-                        type="button"
-                        onClick={() => removeFromCart(index)}
-                        className="rounded-xl px-3 py-2 text-sm text-gray-500 transition hover:bg-red-50 hover:text-red-600"
+                        className="sil-buton"
+                        onClick={() =>
+                          favoriDegistir(
+                            urun.id
+                          )
+                        }
                       >
                         Kaldır
                       </button>
                     </div>
-                  ))}
-                </div>
-
-                <div className="h-fit rounded-3xl border border-white bg-white/75 p-6 shadow-lg backdrop-blur-xl">
-                  <h2 className="text-xl font-medium">Sepet özeti</h2>
-                  <div className="mt-6 flex justify-between text-sm text-gray-500">
-                    <span>Ürün sayısı</span>
-                    <span>{cartProducts.length}</span>
-                  </div>
-                  <div className="mt-4 flex justify-between border-t border-black/10 pt-4">
-                    <span>Toplam</span>
-                    <span className="text-lg font-semibold">
-                      {formatPrice(cartTotal)}
-                    </span>
-                  </div>
-                  <div className="mt-6 rounded-2xl bg-violet-50 p-4 text-xs leading-6 text-violet-900">
-                    Bu sayfa yalnızca demo amaçlıdır. Gerçek ödeme alınmaz ve
-                    gerçek sipariş oluşturulmaz.
-                  </div>
-                </div>
+                  ))
+                )}
               </div>
             )}
-          </section>
-        )}
 
-        {/* Menü */}
-        {tab === "menu" && (
-          <section className="min-h-[65vh] py-16">
-            <p className="text-[10px] tracking-[0.3em] text-gray-500">
-              Zyren Versé
-            </p>
-            <h1 className="mt-4 text-4xl font-light">Keşfet</h1>
+            {/* SEPET */}
+            {sepetAcik && (
+              <>
+                <div className="panel-icerik">
+                  {sepettekiUrunler.length ===
+                  0 ? (
+                    <div className="bos-panel">
+                      <div
+                        style={{
+                          fontSize: 40,
+                        }}
+                      >
+                        🛒
+                      </div>
 
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              <MenuCard
-                title="Ana sayfa"
-                description="Zyren Versé dünyasına geri dön."
-                icon="⌂"
-                onClick={() => navigate("home")}
-              />
-              <MenuCard
-                title="Koleksiyon"
-                description="Tüm tasarımları keşfet."
-                icon="◇"
-                onClick={() => navigate("categories")}
-              />
-              <MenuCard
-                title="Favorilerim"
-                description="Beğendiğin ürünleri görüntüle."
-                icon="♡"
-                onClick={() => navigate("favorites")}
-              />
-              <MenuCard
-                title="Sepetim"
-                description="Sepetine eklediğin ürünleri gör."
-                icon="♧"
-                onClick={() => navigate("cart")}
-              />
-            </div>
+                      Sepetin şimdilik boş.
+                    </div>
+                  ) : (
+                    sepettekiUrunler.map(
+                      ({
+                        urun,
+                        index,
+                      }) => (
+                        <div
+                          className="sepet-satiri"
+                          key={`${urun.id}-${index}`}
+                        >
+                          <div className="sepet-sembol">
+                            {urun.sembol}
+                          </div>
 
-            <div className="mt-8 rounded-3xl border border-white bg-white/60 p-6 backdrop-blur-xl">
-              <p className="font-medium">Zyren Versé</p>
-              <p className="mt-2 text-sm leading-7 text-gray-500">
-                Zarafeti modern tasarımlarla buluşturan dijital bir marka
-                deneyimi.
-              </p>
-              <p className="mt-4 text-xs text-gray-400">
-                Demo sürümü · Geliştirme aşamasında
-              </p>
-            </div>
-          </section>
-        )}
+                          <div>
+                            <h3>
+                              {urun.isim}
+                            </h3>
 
-        <footer className="mt-12 border-t border-black/10 py-8 text-center">
-          <p className="text-xs tracking-[0.4em] text-gray-500">ZYREN VERSÉ</p>
-          <p className="mt-3 text-xs text-gray-400">
-            Zamansız zarafet, modern bir dokunuş.
-          </p>
-          <p className="mt-2 text-[10px] text-gray-400">
-            Demo proje · Gerçek sipariş ve ödeme alınmaz.
-          </p>
-        </footer>
-      </div>
+                            <p>
+                              {PARA(
+                                urun.fiyat
+                              )}
+                            </p>
+                          </div>
 
-      {/* Alt navigasyon */}
-      <nav className="fixed bottom-4 left-1/2 z-40 flex w-[calc(100%-24px)] max-w-md -translate-x-1/2 items-center justify-around rounded-[2rem] border border-white/90 bg-white/80 px-2 py-3 shadow-2xl shadow-black/10 backdrop-blur-2xl">
-        <NavButton
-          icon="⌂"
-          label="Ana Sayfa"
-          active={tab === "home"}
-          onClick={() => navigate("home")}
-        />
+                          <button
+                            className="sil-buton"
+                            onClick={() =>
+                              sepettenCikar(
+                                index
+                              )
+                            }
+                          >
+                            Sil
+                          </button>
+                        </div>
+                      )
+                    )
+                  )}
+                </div>
 
-        <NavButton
-          icon="◇"
-          label="Koleksiyon"
-          active={tab === "categories"}
-          onClick={() => navigate("categories")}
-        />
+                <div className="panel-alt">
+                  <div className="sepet-toplam">
+                    <span>
+                      Demo sepet toplamı
+                    </span>
 
-        <button
-          type="button"
-          onClick={() => navigate("home")}
-          aria-label="Zyren Versé ana sayfa"
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#29243b] text-2xl text-white shadow-lg transition hover:scale-105"
+                    <strong>
+                      {PARA(
+                        sepetToplami
+                      )}
+                    </strong>
+                  </div>
+
+                  <button
+                    className="buton"
+                    onClick={() =>
+                      bildirimGoster(
+                        "Bu demo sürümünde gerçek ödeme veya sipariş oluşturulmaz."
+                      )
+                    }
+                  >
+                    DEMO ÖDEME
+                    <span>↗</span>
+                  </button>
+
+                  <p
+                    style={{
+                      color: "#888",
+                      fontSize: 9,
+                      lineHeight: 1.8,
+                      textAlign: "center",
+                    }}
+                  >
+                    Bu sepet test amaçlıdır.
+                    Gerçek sipariş veya
+                    ödeme yapılmaz.
+                  </p>
+                </div>
+              </>
+            )}
+          </aside>
+        </>
+      )}
+
+      {/* ÜRÜN DETAY MODALI */}
+      {seciliUrun && (
+        <div
+          className="detay-arka"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setSeciliUrun(null);
+            }
+          }}
         >
-          ♧
-        </button>
-
-        <NavButton
-          icon="♡"
-          label="Favoriler"
-          active={tab === "favorites"}
-          badge={favorites.length}
-          onClick={() => navigate("favorites")}
-        />
-
-        <NavButton
-          icon="♧"
-          label="Sepet"
-          active={tab === "cart"}
-          badge={cart.length}
-          onClick={() => navigate("cart")}
-        />
-      </nav>
-    </main>
-  );
-}
-
-type ProductGridProps = {
-  items: Product[];
-  favorites: number[];
-  onFavorite: (id: number) => void;
-  onAddToCart: (id: number) => void;
-  onSelect: (product: Product) => void;
-};
-
-function ProductGrid({
-  items,
-  favorites,
-  onFavorite,
-  onAddToCart,
-  onSelect,
-}: ProductGridProps) {
-  return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      {items.map((product) => (
-        <article
-          key={product.id}
-          className="group overflow-hidden rounded-[2rem] border border-white/90 bg-white/60 p-3 shadow-lg shadow-black/[0.03] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:shadow-xl"
-        >
-          <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-[1.5rem] bg-gradient-to-br from-white/90 to-violet-100/70">
-            <div className="absolute inset-4 rounded-[1.2rem] border border-white/80" />
-
-            <span className="relative text-7xl drop-shadow-lg transition duration-300 group-hover:scale-110">
-              {product.symbol}
-            </span>
-
+          <article
+            className="detay-kart"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${seciliUrun.isim} ürün detayı`}
+          >
             <button
-              type="button"
-              onClick={() => onFavorite(product.id)}
-              aria-label={
-                favorites.includes(product.id)
-                  ? "Favorilerden çıkar"
-                  : "Favorilere ekle"
+              className="detay-kapat"
+              aria-label="Ürün detayını kapat"
+              onClick={() =>
+                setSeciliUrun(null)
               }
-              className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/90 bg-white/80 text-xl backdrop-blur-xl transition hover:scale-110"
             >
-              {favorites.includes(product.id) ? "♥" : "♡"}
+              ×
             </button>
 
-            <span className="absolute bottom-4 left-4 rounded-full border border-white/90 bg-white/80 px-3 py-2 text-[10px] tracking-widest backdrop-blur-xl">
-              {product.category.toUpperCase()}
-            </span>
-          </div>
+            <div className="detay-gorsel">
+              <span className="detay-sembol">
+                {seciliUrun.sembol}
+              </span>
+            </div>
 
-          <div className="p-4">
-            <button
-              type="button"
-              onClick={() => onSelect(product)}
-              className="text-left"
-            >
-              <h3 className="text-lg font-medium transition hover:text-violet-700">
-                {product.name}
-              </h3>
-            </button>
-
-            <p className="mt-2 min-h-10 text-sm leading-5 text-gray-500">
-              {product.description}
-            </p>
-
-            <div className="mt-5 flex items-center justify-between gap-3">
-              <span className="font-semibold">
-                {formatPrice(product.price)}
+            <div className="detay-icerik">
+              <span className="urun-kategori">
+                {seciliUrun.kategori}
               </span>
 
+              <h2>
+                {seciliUrun.isim}
+              </h2>
+
+              <p>
+                {seciliUrun.aciklama}
+              </p>
+
+              <strong className="detay-fiyat">
+                {PARA(
+                  seciliUrun.fiyat
+                )}
+              </strong>
+
               <button
-                type="button"
-                onClick={() => onAddToCart(product.id)}
-                className="rounded-xl bg-[#29243b] px-4 py-3 text-xs text-white transition hover:bg-[#403653]"
+                className="buton"
+                style={{
+                  width: "100%",
+                }}
+                onClick={() => {
+                  sepeteEkle(
+                    seciliUrun.id
+                  );
+
+                  setSeciliUrun(null);
+                }}
               >
-                + Sepete ekle
+                SEPETE EKLE
+                <span>↗</span>
+              </button>
+
+              <button
+                className="buton buton-ikincil"
+                style={{
+                  width: "100%",
+                  marginTop: 10,
+                }}
+                onClick={() =>
+                  favoriDegistir(
+                    seciliUrun.id
+                  )
+                }
+              >
+                {favoriler.includes(
+                  seciliUrun.id
+                )
+                  ? "♥ FAVORİLERDEN ÇIKAR"
+                  : "♡ FAVORİLERE EKLE"}
               </button>
             </div>
-
-            <button
-              type="button"
-              onClick={() => onSelect(product)}
-              className="mt-3 w-full rounded-xl border border-black/5 py-3 text-xs text-gray-600 transition hover:bg-white/80"
-            >
-              Ürünü incele ↗
-            </button>
-          </div>
-        </article>
-      ))}
-    </div>
-  );
-}
-
-type NavButtonProps = {
-  icon: string;
-  label: string;
-  active: boolean;
-  badge?: number;
-  onClick: () => void;
-};
-
-function NavButton({
-  icon,
-  label,
-  active,
-  badge = 0,
-  onClick,
-}: NavButtonProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      className={`relative flex min-w-0 flex-col items-center gap-1 rounded-2xl px-2 py-1 transition ${
-        active ? "text-[#29243b]" : "text-gray-400 hover:text-gray-700"
-      }`}
-    >
-      <span className="text-2xl leading-7">{icon}</span>
-      <span className="whitespace-nowrap text-[9px]">{label}</span>
-
-      {badge > 0 && (
-        <span className="absolute -right-1 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-violet-600 px-1 text-[9px] text-white">
-          {badge}
-        </span>
+          </article>
+        </div>
       )}
-    </button>
-  );
-}
 
-type MenuCardProps = {
-  title: string;
-  description: string;
-  icon: string;
-  onClick: () => void;
-};
-
-function MenuCard({
-  title,
-  description,
-  icon,
-  onClick,
-}: MenuCardProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex items-center gap-5 rounded-3xl border border-white bg-white/60 p-6 text-left shadow-sm backdrop-blur-xl transition hover:-translate-y-1 hover:bg-white/85"
-    >
-      <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white bg-white/80 text-3xl">
-        {icon}
-      </span>
-
-      <span>
-        <span className="block font-medium">{title}</span>
-        <span className="mt-2 block text-sm leading-6 text-gray-500">
-          {description}
-        </span>
-      </span>
-    </button>
+      {/* BİLDİRİM */}
+      {bildirim && (
+        <div
+          className="bildirim"
+          role="status"
+          aria-live="polite"
+        >
+          {bildirim}
+        </div>
+      )}
+    </main>
   );
 }
