@@ -2882,7 +2882,7 @@ export default function Home() {
         </div>
 
         <div className="telif">
-          © {new Date().getFullYear()} ZYREN
+          © 2026 ZYREN
           VERSÉ. Tüm hakları saklıdır.
           <br />
           Bu site geliştirme ve tanıtım amaçlı
